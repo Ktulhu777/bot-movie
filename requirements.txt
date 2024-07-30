@@ -1,0 +1,7 @@
+aiogram
+sqlalchemy
+asyncpg
+alembic
+databases
+psycopg2-binary
+python-dotenv
