@@ -13,12 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram.methods import DeleteWebhook
 
 # Our modules
-from config.config import TOKEN
-from service_database.service import add_user_in_db, add_movie_in_db, movie_exists
+from config.config import TOKEN, PASSWORD_ADMIN
+from service_database.service import add_user_in_db, add_movie_in_db, movie_exists, add_super_user, exists_super_user
 from middlewares.session_db import DataBaseSession
 from database_engine import async_session_maker
 from utils.utils import on_startup, on_shotdown, markup_subscription
-from states.default_states import Movie
+from states.default_states import Movie, Admin
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
@@ -57,10 +57,31 @@ async def subscription_verification(callback: types.CallbackQuery):
                                       reply_markup=markup_subscription)
 
 
+@dp.message(Command('appoint_an_administrator'))
+async def appoint_an_administrator(message: types.Message, state: FSMContext):
+    await state.set_state(Admin.password)
+    await message.answer("🆔 Введите пароль от администратора")
+
+
+@dp.message(Admin.password)
+async def appoint_an_administrator_process(message: types.Message, state: FSMContext, session: AsyncSession):
+    if PASSWORD_ADMIN == message.text:
+        await state.update_data(password=message.text)
+        await add_super_user(id_super_user=message.from_user.id, session=session)
+        await state.clear()
+        await message.answer("✅ Отлично, вы добавлены как администратор бота.")
+    else:
+        await message.answer("❌ Неправильный пароль")
+
+
 @dp.message(Command('add_movie'))
-async def start_add_movie_process(message: types.Message, state: FSMContext):
-    await message.answer("Введите название фильма.")
-    await state.set_state(Movie.title)
+async def start_add_movie_process(message: types.Message, state: FSMContext, session: AsyncSession):
+    if await exists_super_user(id_super_user=int(message.from_user.id),
+                               session=session):
+        await message.answer("Введите название фильма.")
+        await state.set_state(Movie.title)
+    else:
+        await message.answer("Данная команда не доступна.")
 
 
 @dp.message(Movie.title)

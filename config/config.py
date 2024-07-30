@@ -12,3 +12,4 @@ DB_PASS = os.environ.get("DB_PASS")
 
 # telegram
 TOKEN = os.environ.get("TOKEN")
+PASSWORD_ADMIN = os.environ.get("PASSWORD_ADMIN")

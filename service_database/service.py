@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from models.models import Users, Movie
+from models.models import Users, Movie, Admin
 
 
 async def user_exists(pk_user: int, session: AsyncSession):
@@ -34,3 +34,15 @@ async def add_movie_in_db(movie_code: int, title: str, session: AsyncSession):
         await session.refresh(movie)
         return True
     return False
+
+
+async def exists_super_user(id_super_user: int, session: AsyncSession) -> bool:
+    admin = await session.execute(select(Admin).where(Admin.id_super_user == id_super_user))
+    return True if admin.scalar() else False
+
+
+async def add_super_user(id_super_user: int, session: AsyncSession):
+    admin = Admin(id_super_user=id_super_user)
+    session.add(admin)
+    await session.commit()
+    await session.refresh(admin)

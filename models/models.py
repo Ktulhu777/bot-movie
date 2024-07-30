@@ -21,3 +21,10 @@ class Movie(Base):
     movie_code: int = Column(Integer, unique=True)
     title: str = Column(String)
     date_added: datetime.utcnow = Column(TIMESTAMP, default=datetime.utcnow())
+
+
+class Admin(Base):
+    __tablename__ = "admins"
+
+    id: int = Column(Integer, primary_key=True, autoincrement=True)
+    id_super_user: int = Column(BigInteger)
