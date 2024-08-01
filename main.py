@@ -17,8 +17,9 @@ from config.config import TOKEN, PASSWORD_ADMIN
 from service_database.service import add_user_in_db, add_movie_in_db, movie_exists, add_super_user, exists_super_user
 from middlewares.session_db import DataBaseSession
 from database_engine import async_session_maker
-from utils.utils import on_startup, on_shotdown, markup_subscription
-from states.default_states import Movie, Admin
+from utils.utils import on_startup, on_shotdown, markup_subscription, cancel_button
+from states.default_states import MovieState, AdminState
+from models.models import Movie
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
@@ -57,13 +58,23 @@ async def subscription_verification(callback: types.CallbackQuery):
                                       reply_markup=markup_subscription)
 
 
+@dp.callback_query(F.data == 'cancel')
+async def cancel_handler(callback: types.CallbackQuery, state: FSMContext) -> None:
+    """Функция сброса FSM"""
+    current_state = await state.get_state()
+    if current_state is None:
+        return
+    await state.clear()
+    await callback.message.edit_text("❌ Вы сделали отмену ❌")
+
+
 @dp.message(Command('appoint_an_administrator'))
 async def appoint_an_administrator(message: types.Message, state: FSMContext):
-    await state.set_state(Admin.password)
-    await message.answer("🆔 Введите пароль от администратора")
+    await state.set_state(AdminState.password)
+    await message.answer("🆔 Введите пароль от администратора", reply_markup=cancel_button)
 
 
-@dp.message(Admin.password)
+@dp.message(AdminState.password)
 async def appoint_an_administrator_process(message: types.Message, state: FSMContext, session: AsyncSession):
     if PASSWORD_ADMIN == message.text:
         await state.update_data(password=message.text)
@@ -71,38 +82,27 @@ async def appoint_an_administrator_process(message: types.Message, state: FSMCon
         await state.clear()
         await message.answer("✅ Отлично, вы добавлены как администратор бота.")
     else:
-        await message.answer("❌ Неправильный пароль")
+        await message.answer("❌ Неправильный пароль",  reply_markup=cancel_button)
 
 
 @dp.message(Command('add_movie'))
 async def start_add_movie_process(message: types.Message, state: FSMContext, session: AsyncSession):
     if await exists_super_user(id_super_user=int(message.from_user.id),
                                session=session):
-        await message.answer("Введите название фильма.")
-        await state.set_state(Movie.title)
+        await message.answer("Введите название фильма.", reply_markup=cancel_button)
+        await state.set_state(MovieState.title)
     else:
         await message.answer("Данная команда не доступна.")
 
 
-@dp.message(Movie.title)
+@dp.message(MovieState.title)
 async def process_title(message: types.Message, state: FSMContext):
     await state.update_data(title=message.text)
-    await message.answer("🆔 Введите код фильма.")
-    await state.set_state(Movie.code_movie)
+    await message.answer("🆔 Введите код фильма.", reply_markup=cancel_button)
+    await state.set_state(MovieState.code_movie)
 
 
-@dp.message(Command('cancel'))
-@dp.message(F.text.casefold() == "cancel")
-async def cancel_handler(message: types.Message, state: FSMContext) -> None:
-    current_state = await state.get_state()
-    if current_state is None:
-        return
-
-    await state.clear()
-    await message.answer("✅ Вы сделали отмену.")
-
-
-@dp.message(Movie.code_movie)
+@dp.message(MovieState.code_movie)
 async def process_code_movie(message: types.Message, state: FSMContext, session: AsyncSession):
     if message.text.isdigit():
         if await movie_exists(movie_code=int(message.text), session=session):
@@ -112,9 +112,9 @@ async def process_code_movie(message: types.Message, state: FSMContext, session:
             await state.clear()
             await add_movie_in_db(movie_code=int(data['code_movie']), title=data['title'], session=session)
         else:
-            await message.answer("❌ Данный код занят другим фильмом.")
+            await message.answer("❌ Данный код занят другим фильмом.", reply_markup=cancel_button)
     else:
-        await message.answer("❌ Это не число введите пожалуйста целое число.")
+        await message.answer("❌ Это не число введите пожалуйста целое число.", reply_markup=cancel_button)
 
 
 @dp.message()

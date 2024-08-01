@@ -5,3 +5,5 @@ alembic
 databases
 psycopg2-binary
 python-dotenv
+celery
+redis

@@ -1,10 +1,10 @@
 from aiogram.fsm.state import StatesGroup, State
 
 
-class Movie(StatesGroup):
+class MovieState(StatesGroup):
     code_movie = State()
     title = State()
 
 
-class Admin(StatesGroup):
+class AdminState(StatesGroup):
     password = State()
